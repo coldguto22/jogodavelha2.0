@@ -5,6 +5,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const statusElement = document.getElementById('game-status');
     const restartBtn = document.getElementById('restart-btn');
     const modeSelect = document.getElementById('mode-select');
+    const ruleSelect = document.getElementById('rule-select');
 
     const macroBoard = Array.from({ length: 9 }, () => ({
         board: Array(9).fill(null), // micro tabuleiro
@@ -16,6 +17,12 @@ document.addEventListener('DOMContentLoaded', function() {
     let gameActive = true;
     let activeMicro = null; // null = qualquer micro, 0-8 = micro específico
     let mode = modeSelect ? modeSelect.value : 'human';
+    let ruleMode = ruleSelect ? ruleSelect.value : 'classic';
+
+    // Retorna o activeMicro efetivo: null no modo livre, valor real no modo clássico
+    function getActiveMicro() {
+        return ruleMode === 'free' ? null : activeMicro;
+    }
 
     function renderMacroBoard() {
         boardElement.innerHTML = '';
@@ -25,7 +32,7 @@ document.addEventListener('DOMContentLoaded', function() {
             if (micro.finished) microDiv.classList.add('finished');
             // Highlight do micro ativo
             if (!micro.finished && gameActive) {
-                if (activeMicro === null || activeMicro === macroIdx) {
+                if (getActiveMicro() === null || getActiveMicro() === macroIdx) {
                     microDiv.classList.add('active-micro');
                 } else {
                     microDiv.classList.add('inactive-micro');
@@ -42,7 +49,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 const cellDiv = document.createElement('div');
                 cellDiv.className = 'cell';
                 cellDiv.textContent = cell || '';
-                const isAllowed = activeMicro === null || activeMicro === macroIdx;
+                const isAllowed = getActiveMicro() === null || getActiveMicro() === macroIdx;
                 if (!micro.finished && !cell && gameActive && isAllowed) {
                     cellDiv.addEventListener('click', () => handleMicroCellClick(macroIdx, microIdx));
                 }
@@ -54,7 +61,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function handleMicroCellClick(macroIdx, microIdx) {
         // Verificar se o macro clicado é permitido pelo activeMicro
-        if (activeMicro !== null && activeMicro !== macroIdx) return;
+        if (getActiveMicro() !== null && getActiveMicro() !== macroIdx) return;
         const micro = macroBoard[macroIdx];
         if (micro.finished || micro.board[microIdx]) return;
         micro.board[microIdx] = currentPlayer;
@@ -97,9 +104,16 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function aiMoveMacro() {
-        // IA heurística refinada: prioriza continuidade, linhas no macro e evita dispersão
+        // IA heurística com regra clássica: respeita activeMicro e avalia destino do oponente
+        const macroWinPatterns = [
+            [0,1,2],[3,4,5],[6,7,8],
+            [0,3,6],[1,4,7],[2,5,8],
+            [0,4,8],[2,4,6]
+        ];
         const options = [];
         macroBoard.forEach((micro, macroIdx) => {
+            // Respeitar activeMicro: só considerar micros permitidos
+            if (getActiveMicro() !== null && getActiveMicro() !== macroIdx) return;
             if (!micro.finished) {
                 micro.board.forEach((cell, microIdx) => {
                     if (!cell) {
@@ -107,10 +121,12 @@ document.addEventListener('DOMContentLoaded', function() {
                         // 1. Priorizar vencer o micro
                         const tempMicro = micro.board.slice();
                         tempMicro[microIdx] = 'O';
-                        let willWinMicro = false;
                         if (checkWinner(tempMicro)) {
                             score += 100;
-                            willWinMicro = true;
+                            // Bônus extra se vencer o micro fecha uma linha no macro
+                            const tempMacro = macroStatus.slice();
+                            tempMacro[macroIdx] = 'O';
+                            if (checkWinner(tempMacro)) score += 500;
                         }
                         // 2. Bloquear o adversário no micro
                         tempMicro[microIdx] = 'X';
@@ -121,27 +137,38 @@ document.addEventListener('DOMContentLoaded', function() {
                         if (xCount - oCount >= 2) score -= 10;
                         // 4. Priorizar micros já iniciados pela IA
                         if (oCount > 0) score += 20;
-                        // 5. Priorizar micros que contribuem para linha/coluna/diagonal no macro
-                        const macroWinPatterns = [
-                            [0,1,2],[3,4,5],[6,7,8],
-                            [0,3,6],[1,4,7],[2,5,8],
-                            [0,4,8],[2,4,6]
-                        ];
+                        // 5. Priorizar micros que contribuem para linha no macro
                         macroWinPatterns.forEach(pattern => {
                             if (pattern.includes(macroIdx)) {
                                 const countO = pattern.filter(idx => macroStatus[idx] === 'O').length;
                                 if (countO > 0) score += 30;
                             }
                         });
-                        // 6. Penalizar micros onde o adversário tem mais marcas
+                        // 6. Penalizar micros onde o adversário domina
                         if (xCount > oCount) score -= 10;
+                        // 7. Heurística de destino: avaliar para qual micro estamos mandando o oponente
+                        const destMicro = macroBoard[microIdx];
+                        if (!destMicro.finished) {
+                            // Penalizar se o oponente (X) está perto de vencer o micro de destino
+                            const destBoard = destMicro.board;
+                            const destXCount = destBoard.filter(v => v === 'X').length;
+                            const destOCount = destBoard.filter(v => v === 'O').length;
+                            if (destXCount >= 2 && destXCount > destOCount) score -= 40;
+                            // Bônus se mandamos para micro que já dominamos
+                            if (destOCount >= 2 && destOCount > destXCount) score += 25;
+                            // Penalizar se vencer o micro de destino daria vitória macro ao oponente
+                            const tempMacroX = macroStatus.slice();
+                            tempMacroX[microIdx] = 'X';
+                            if (checkWinner(tempMacroX)) score -= 60;
+                        }
+                        // Bônus se mandamos para micro já finalizado (oponente fica livre, mas não ganha nada)
+                        // Esse caso é neutro, sem ajuste extra
                         options.push({ macroIdx, microIdx, score });
                     }
                 });
             }
         });
         if (options.length === 0) return;
-        // Se houver jogada de vitória macro, faz; senão, escolhe melhor pontuada
         const maxScore = Math.max(...options.map(o => o.score));
         const bestMoves = options.filter(o => o.score === maxScore);
         let move = bestMoves[Math.floor(Math.random() * bestMoves.length)];
@@ -183,6 +210,11 @@ document.addEventListener('DOMContentLoaded', function() {
 
     modeSelect && modeSelect.addEventListener('change', (e) => {
         mode = e.target.value;
+        restartGame();
+    });
+
+    ruleSelect && ruleSelect.addEventListener('change', (e) => {
+        ruleMode = e.target.value;
         restartGame();
     });
 
