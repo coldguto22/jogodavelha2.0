@@ -11,7 +11,7 @@ Este é um projeto web de Jogo da Velha 2.0, onde cada célula do tabuleiro prin
 - Dois modos: 2 jogadores ou contra IA (básica).
 
 ## Como rodar
-1. Abra o arquivo `index.html` em seu navegador.
+1. Abra o link `https://coldguto22.github.io/jogodavelha2.0/` em seu navegador.
 2. Escolha o modo de jogo e jogue!
 
 ## Estrutura do Projeto
