@@ -23,6 +23,14 @@ document.addEventListener('DOMContentLoaded', function() {
             const microDiv = document.createElement('div');
             microDiv.className = 'micro-board';
             if (micro.finished) microDiv.classList.add('finished');
+            // Highlight do micro ativo
+            if (!micro.finished && gameActive) {
+                if (activeMicro === null || activeMicro === macroIdx) {
+                    microDiv.classList.add('active-micro');
+                } else {
+                    microDiv.classList.add('inactive-micro');
+                }
+            }
             // Indicação visual do vencedor do micro
             if (micro.finished && micro.winner && micro.winner !== 'E') {
                 const winnerSpan = document.createElement('span');
@@ -34,7 +42,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 const cellDiv = document.createElement('div');
                 cellDiv.className = 'cell';
                 cellDiv.textContent = cell || '';
-                if (!micro.finished && !cell && gameActive) {
+                const isAllowed = activeMicro === null || activeMicro === macroIdx;
+                if (!micro.finished && !cell && gameActive && isAllowed) {
                     cellDiv.addEventListener('click', () => handleMicroCellClick(macroIdx, microIdx));
                 }
                 microDiv.appendChild(cellDiv);
@@ -44,6 +53,8 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function handleMicroCellClick(macroIdx, microIdx) {
+        // Verificar se o macro clicado é permitido pelo activeMicro
+        if (activeMicro !== null && activeMicro !== macroIdx) return;
         const micro = macroBoard[macroIdx];
         if (micro.finished || micro.board[microIdx]) return;
         micro.board[microIdx] = currentPlayer;
