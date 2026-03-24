@@ -14,6 +14,7 @@ document.addEventListener('DOMContentLoaded', function() {
     let macroStatus = Array(9).fill(null); // 'X', 'O', 'E' (empate) ou null
     let currentPlayer = 'X';
     let gameActive = true;
+    let activeMicro = null; // null = qualquer micro, 0-8 = micro específico
     let mode = modeSelect ? modeSelect.value : 'human';
 
     function renderMacroBoard() {
@@ -56,13 +57,22 @@ document.addEventListener('DOMContentLoaded', function() {
             micro.finished = true;
             macroStatus[macroIdx] = 'E';
         }
+        // Calcula o próximo activeMicro com base na posição jogada
+        const nextMicro = microIdx; // a posição dentro do micro determina o próximo macro
+        if (macroBoard[nextMicro].finished) {
+            activeMicro = null; // micro de destino já finalizado → jogo livre
+        } else {
+            activeMicro = nextMicro;
+        }
         // Verifica vitória/empate no macro
         if (checkWinner(macroStatus)) {
             statusElement.textContent = `Jogador ${currentPlayer} venceu o tabuleiro macro!`;
             gameActive = false;
+            activeMicro = null;
         } else if (macroStatus.every(cell => cell)) {
             statusElement.textContent = 'Empate no tabuleiro macro!';
             gameActive = false;
+            activeMicro = null;
         } else {
             currentPlayer = currentPlayer === 'X' ? 'O' : 'X';
             statusElement.textContent = `Vez do jogador ${currentPlayer}`;
@@ -152,6 +162,7 @@ document.addEventListener('DOMContentLoaded', function() {
         currentPlayer = restartGame.lastStarter === 'X' ? 'O' : 'X';
         restartGame.lastStarter = currentPlayer;
         gameActive = true;
+        activeMicro = null;
         statusElement.textContent = `Vez do jogador ${currentPlayer}`;
         renderMacroBoard();
         if (mode === 'ai' && currentPlayer === 'O') {
