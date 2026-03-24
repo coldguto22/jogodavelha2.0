@@ -1,5 +1,13 @@
 # Changelog
 
+## [24/03/2026]
+- Implementação da regra clássica do Ultimate Tic-Tac-Toe: variável activeMicro determina o micro obrigatório com base na posição jogada
+- Restrição de cliques ao micro ativo (validação no handler e na renderização)
+- Feedback visual do micro ativo: borda verde/brilho nos micros permitidos, opacidade reduzida nos bloqueados
+- IA adaptada à regra clássica: respeita activeMicro e avalia heuristicamente o destino de cada jogada
+- Seletor de regra (Clássica vs Livre) na interface, preservando o comportamento original como opção
+- Documentação atualizada para refletir as duas regras disponíveis
+
 ## [18/06/2025]
 - Refino da IA heurística: prioriza continuidade em micros já iniciados, formação de linhas no macro e evita dispersão
 
